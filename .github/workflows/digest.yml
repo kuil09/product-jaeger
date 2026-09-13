@@ -1,0 +1,22 @@
+name: Build and deliver digest
+on:
+  schedule:
+    - cron: "30 22 * * *"
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install .
+      - run: product-jaeger digest --send
+        env:
+          NEON_DATABASE_URL: "${{ secrets.NEON_DATABASE_URL }}"
+          OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}"
+          TELEGRAM_BOT_TOKEN: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          TELEGRAM_CHAT_ID: "${{ secrets.TELEGRAM_CHAT_ID }}"
+          RADAR_DRY_RUN: "false"

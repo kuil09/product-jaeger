@@ -1,0 +1,35 @@
+name: Manual radar run
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Optional source to replay"
+        required: false
+        type: choice
+        default: all
+        options: [all, hn_show, github_search, rss]
+      since:
+        description: "Optional ISO-8601 start time, for example 2026-09-12T00:00:00Z"
+        required: false
+        type: string
+permissions: {contents: read}
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install .
+      - run: product-jaeger init-db
+        env: {NEON_DATABASE_URL: "${{ secrets.NEON_DATABASE_URL }}"}
+      - run: |
+          args=()
+          if [ "$SOURCE" != "all" ]; then args+=(--source "$SOURCE"); fi
+          if [ -n "$SINCE" ]; then args+=(--since "$SINCE"); fi
+          product-jaeger ingest "${args[@]}"
+        env:
+          NEON_DATABASE_URL: "${{ secrets.NEON_DATABASE_URL }}"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          SOURCE: "${{ inputs.source }}"
+          SINCE: "${{ inputs.since }}"

@@ -1,0 +1,14 @@
+digest_size: 15
+digest_max_size: 20
+llm_candidate_limit: 40
+llm_min_context_length: 8192
+llm_min_capability_score: 7
+raw_retention_days: 90
+dry_run: true
+topics: [local-first, hardware, gadget, agent, self-hosted, oss, unusual-interaction]
+ignore_domains: [medium.com, youtu.be]
+sources:
+  hn_show: {enabled: true, interval_min: 15}
+  github_search: {enabled: true, interval_min: 60, min_stars: 10, languages: [python, rust, typescript, go]}
+  rss: {enabled: true, interval_min: 60, feeds: [https://hnrss.org/show, https://huggingface.co/blog/feed.xml]}
+weights: {novelty: 0.28, velocity: 0.22, multi_source: 0.18, technical_depth: 0.12, topic_fit: 0.10, anti_spam: 0.10}

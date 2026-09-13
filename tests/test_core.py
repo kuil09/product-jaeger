@@ -89,10 +89,70 @@ def test_free_model_and_projection(tmp_path):
         raise AssertionError("paid model accepted")
     render([item("x")], tmp_path)
     assert '"raw":' not in (tmp_path / "latest.json").read_text()
+    leaderboard = json.loads((tmp_path / "leaderboard.json").read_text())
+    assert leaderboard["items"][0]["rank"] == 1
+    assert set(leaderboard["items"][0]) == {
+        "rank",
+        "title",
+        "url",
+        "source_url",
+        "sources",
+        "topics",
+        "summary",
+        "raw_score",
+        "final_score",
+        "first_seen_at",
+        "published_at",
+    }
     assert (tmp_path / "index.html").exists()
+    assert "Current leaderboard" in (tmp_path / "index.html").read_text()
     render_archive([(datetime.now(timezone.utc), [item("y")])], tmp_path)
     assert list((tmp_path / "archive").glob("*.json"))
     assert (tmp_path / "archive.html").exists()
+    archive_page = next((tmp_path / "archive").glob("*.html")).read_text()
+    assert "Current leaderboard" not in archive_page
+
+
+def test_leaderboard_ranks_deterministically_and_deduplicates(tmp_path):
+    first = item("first")
+    second = item("second", "rss")
+    duplicate = item("duplicate", "github_search")
+    first.id = "a"
+    second.id = "b"
+    first.cluster_id = "a"
+    duplicate.cluster_id = first.id
+    second.final_score = first.final_score = duplicate.final_score = 0.5
+    second.raw_score = first.raw_score = duplicate.raw_score = 0.5
+    second.first_seen_at = first.first_seen_at
+    duplicate.first_seen_at = first.first_seen_at
+    render([duplicate, second, first], tmp_path)
+    records = json.loads((tmp_path / "leaderboard.json").read_text())["items"]
+    assert [record["rank"] for record in records] == [1, 2]
+    assert [record["title"] for record in records] == ["Open hardware project"] * 2
+    assert records[0]["url"] < records[1]["url"]
+
+
+def test_leaderboard_excludes_skip_and_caps_at_twenty(tmp_path):
+    items = [item(str(index)) for index in range(25)]
+    items[0].llm_decision = "skip"
+    render(items, tmp_path)
+    records = json.loads((tmp_path / "leaderboard.json").read_text())["items"]
+    assert len(records) == 20
+    assert all(record["rank"] == index for index, record in enumerate(records, start=1))
+    assert all(record["url"] != items[0].canonical_url for record in records)
+
+
+def test_empty_leaderboard_is_public_and_escaped(tmp_path):
+    render([], tmp_path)
+    assert json.loads((tmp_path / "leaderboard.json").read_text()) == {"items": []}
+    assert "No leaderboard entries" in (tmp_path / "index.html").read_text()
+    escaped = item("escaped")
+    escaped.title = "<unsafe>"
+    escaped.canonical_url = 'https://example.com/?q="unsafe"'
+    render([escaped], tmp_path)
+    page = (tmp_path / "index.html").read_text()
+    assert "&lt;unsafe&gt;" in page
+    assert "&quot;unsafe&quot;" in page
 
 
 def test_migration_is_packaged_without_drifting_from_repository_copy():

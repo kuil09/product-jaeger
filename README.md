@@ -59,4 +59,6 @@ Respect each provider's API terms, rate limits, robots/access rules, attribution
 
 Raw source payloads and credentials are never published. Pages exposes only an allowlisted title, link, source, topics, summary, scores, and timestamps. Do not bypass access controls, login walls, CAPTCHAs, robots rules, or provider terms. Product Hunt, Reddit, Kickstarter, X, and login-only Korean sites are later work.
 
+The Pages home screen also shows a current leaderboard for the latest digest. It ranks the current candidates by `final_score`, including the configured rule score and any free-model LLM adjustment; it is not an investment, quality, or popularity ranking. The same allowlisted records are available as `leaderboard.json`.
+
 The code is Apache-2.0; upstream source content remains subject to its own terms.

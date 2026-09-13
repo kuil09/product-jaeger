@@ -1,6 +1,8 @@
 import json
 from dataclasses import replace
 from datetime import datetime, timezone
+from importlib.resources import files
+from pathlib import Path
 
 import httpx
 import pytest
@@ -91,6 +93,14 @@ def test_free_model_and_projection(tmp_path):
     render_archive([(datetime.now(timezone.utc), [item("y")])], tmp_path)
     assert list((tmp_path / "archive").glob("*.json"))
     assert (tmp_path / "archive.html").exists()
+
+
+def test_migration_is_packaged_without_drifting_from_repository_copy():
+    repository_migration = Path(__file__).parents[1] / "migrations/001_initial.sql"
+    packaged_migration = files("product_jaeger").joinpath("migrations/001_initial.sql")
+    assert packaged_migration.read_text(encoding="utf-8") == repository_migration.read_text(
+        encoding="utf-8"
+    )
 
 
 def model_metadata(

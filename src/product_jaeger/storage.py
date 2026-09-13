@@ -1,5 +1,5 @@
 from datetime import datetime
-from pathlib import Path
+from importlib.resources import files
 from typing import Any
 
 import psycopg
@@ -13,9 +13,9 @@ class Store:
         self.dsn = dsn
 
     def init(self) -> None:
-        path = Path(__file__).resolve().parents[2] / "migrations/001_initial.sql"
+        migration = files("product_jaeger").joinpath("migrations/001_initial.sql")
         with psycopg.connect(self.dsn) as db:
-            db.execute(path.read_text(encoding="utf-8"))
+            db.execute(migration.read_text(encoding="utf-8"))
 
     def last_run(self, source: str) -> datetime | None:
         with psycopg.connect(self.dsn) as db:

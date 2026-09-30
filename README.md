@@ -61,7 +61,7 @@ The 15-minute schedule is unchanged. Reducing database connection counts does no
 
 ## Configuration and operating limits
 
-Change topics, excluded domains, source intervals, RSS feeds, score weights, digest size, and model thresholds in `config/config.yml`; `config.example.yml` is a safe starting point for a fork. The digest defaults to 15 entries and never exceeds 20. Source observations are retained in Neon for 90 days; public Pages contains only the allowlisted projection and not raw source JSON, comments, or private feedback.
+Change topics, excluded domains, source intervals, RSS feeds, score weights, digest size, and model thresholds in `config/config.yml`; `config.example.yml` is a safe starting point for a fork. The digest defaults to 15 entries and never exceeds 20. Source observations have a 90-day retention target in Neon. Cleanup is best-effort after active ingests; when ingestion is paused or no source is due, cleanup waits for the next active ingest. Public Pages contains only the allowlisted projection and not raw source JSON, comments, or private feedback.
 
 GitHub scheduled workflows may start late. This is a low-cost periodic personal radar, not a real-time alerting or trading system. GitHub Actions, Neon, OpenRouter free-model quotas, and Telegram limits can change; free inference may be rate-limited and automatically falls back to rules plus a template summary. The expected monthly operating cost is approximately $0–20 when using free tiers, but quotas and paid upgrades are the operator's responsibility.
 

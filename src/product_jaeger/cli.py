@@ -28,8 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     if not dsn:
         raise SystemExit("NEON_DATABASE_URL is required")
     store = Store(dsn)
-    store.init()
     if args.command == "init-db":
+        store.init()
         print("database initialized")
         return 0
     if args.command == "ingest":

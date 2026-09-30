@@ -2,6 +2,11 @@ name: Manual radar run
 on:
   workflow_dispatch:
     inputs:
+      initialize_database:
+        description: "Run schema setup first (new databases or schema updates only)"
+        required: false
+        type: boolean
+        default: false
       source:
         description: "Optional source to replay"
         required: false
@@ -13,6 +18,7 @@ on:
         required: false
         type: string
 permissions: {contents: read}
+concurrency: {group: product-jaeger-ingest, cancel-in-progress: false}
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -22,6 +28,7 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install .
       - run: product-jaeger init-db
+        if: ${{ inputs.initialize_database }}
         env: {NEON_DATABASE_URL: "${{ secrets.NEON_DATABASE_URL }}"}
       - run: |
           args=()

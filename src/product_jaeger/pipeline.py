@@ -22,6 +22,14 @@ def ingest(
     start = since or (now - timedelta(hours=2))
     since_timestamp = int(start.timestamp())
     jobs: list[tuple[str, Callable[[], list[RawItem]]]] = []
+    enabled = [
+        name
+        for name in ("hn_show", "github_search", "rss")
+        if config.sources.get(name, {}).get("enabled", False) and (not only or only == name)
+    ]
+    # A targeted manual run bypasses interval gates. Ordinary runs read all gates
+    # in one short-lived connection, closed before any source HTTP requests.
+    last_runs = store.last_runs(enabled) if enabled and not only else {}
     for name, factory in [
         ("hn_show", lambda: HN().fetch(since_timestamp)),
         (
@@ -35,9 +43,9 @@ def ingest(
         ("rss", lambda: RSS().fetch(list(config.sources["rss"].get("feeds", [])))),
     ]:
         settings = config.sources.get(name, {})
-        if not settings.get("enabled", False) or (only and only != name):
+        if name not in enabled:
             continue
-        last = store.last_run(name)
+        last = last_runs.get(name)
         if (
             not only
             and last
@@ -45,6 +53,8 @@ def ingest(
         ):
             continue
         jobs.append((name, factory))
+    if not jobs:
+        return []
     items: list[Item] = []
     source_runs: list[tuple[str, str, int, str | None]] = []
     for source, fetch in jobs:
@@ -68,12 +78,12 @@ def ingest(
         store.save(result)
     except Exception as exc:
         storage_error = f"storage: {str(exc)[:450]}"
-        for source, _, count, _ in source_runs:
-            store.run(source, "degraded", count, storage_error)
+        store.record_runs(
+            [(source, "degraded", count, storage_error) for source, _, count, _ in source_runs]
+        )
         store.dead_letter(None, storage_error)
         raise
-    for source, status, count, run_error in source_runs:
-        store.run(source, status, count, run_error)
+    store.record_runs(source_runs)
     store.prune(config.raw_retention_days)
     return result
 

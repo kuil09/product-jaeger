@@ -12,8 +12,6 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install .
-      - run: product-jaeger init-db
-        env: {NEON_DATABASE_URL: "${{ secrets.NEON_DATABASE_URL }}"}
       - run: product-jaeger ingest
         env:
           NEON_DATABASE_URL: "${{ secrets.NEON_DATABASE_URL }}"

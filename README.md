@@ -53,7 +53,7 @@ For a targeted replay, open `Manual radar run` and choose a source plus an optio
 
 Run `product-jaeger init-db` once for a new database and again when deploying schema changes. It is idempotent. Routine `ingest`, `digest`, and `publish` commands require an initialized schema and do not execute DDL. Existing initialized databases need no new migration for the connection-overhead change.
 
-Ingestion reads all enabled source interval gates in one connection, closes that connection before fetching HTTP sources, and records source results in one batch only after item storage succeeds. When no sources are due, it skips saves, run logs, and retention pruning. It does not maintain an idle database connection while waiting for source APIs.
+Ingestion reads all enabled source interval gates in one connection, closes that connection before fetching HTTP sources, and records source results in one batch only after item storage succeeds. Identity lookups return only the newest observation per source/source ID instead of transferring its entire observation history. When no sources are due, it skips saves, run logs, and retention pruning. It does not maintain an idle database connection while waiting for source APIs.
 
 A Neon quota error still requires checking the project's actual exhausted resource and reset date; reducing application overhead does not clear an exhausted provider quota. Once database access is restored, dispatch `Ingest radar sources` with its normal defaults to resume. No outage replay is necessary: the normal two-hour start window for HN/GitHub and current RSS feeds remain unchanged. Leave manual `since` unset when historical replay is not wanted. Verify ingestion succeeds before manually sending a digest or publishing the archive.
 

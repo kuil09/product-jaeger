@@ -227,3 +227,35 @@ def test_workflows_keep_bootstrap_explicit_and_ingestion_serial():
     assert len(setup) == 1 and setup[0]["if"] == "${{ inputs.initialize_database }}"
     assert manual["on"]["workflow_dispatch"]["inputs"]["initialize_database"]["default"] == "false"
     assert manual["concurrency"] == scheduled["concurrency"]
+
+
+def test_save_fetches_only_latest_identities_before_preserving_item_ids(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from product_jaeger.normalize import normalize
+
+    connect = MagicMock()
+    monkeypatch.setattr(storage.psycopg, "connect", connect)
+    db = connect.return_value.__enter__.return_value
+    # PostgreSQL returns only one (latest) observation per matching source pair.
+    db.execute.return_value.fetchall.side_effect = [
+        [("hn-existing", "hn_show", "shared-id"), ("rss-existing", "rss", "shared-id")],
+        [],
+        [],
+    ]
+    items = [
+        normalize(RawItem(source, "shared-id", f"https://example.test/{source}", source))
+        for source in ["hn_show", "rss"]
+    ]
+    Store("postgres://test").save(items)
+
+    sql, params = db.execute.call_args_list[0].args
+    assert "SELECT DISTINCT ON (source,source_id) item_id,source,source_id" in sql
+    assert "ORDER BY source,source_id,observed_at DESC,id DESC" in sql
+    assert set(params[0]) == {"hn_show", "rss"}
+    assert params[1] == ["shared-id"]
+    cursor = db.cursor.return_value.__enter__.return_value
+    item_rows = cursor.executemany.call_args_list[0].args[1]
+    observation_rows = cursor.executemany.call_args_list[1].args[1]
+    assert [row[0] for row in item_rows] == ["hn-existing", "rss-existing"]
+    assert [row[0] for row in observation_rows] == ["hn-existing", "rss-existing"]

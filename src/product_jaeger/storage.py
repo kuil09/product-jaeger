@@ -60,10 +60,10 @@ class Store:
             source_id_values = list({i.source_id for i in items})
             identity_rows = db.execute(
                 """
-                SELECT item_id,source,source_id
+                SELECT DISTINCT ON (source,source_id) item_id,source,source_id
                 FROM source_observations
                 WHERE source = ANY(%s) AND source_id = ANY(%s)
-                ORDER BY observed_at DESC,id DESC
+                ORDER BY source,source_id,observed_at DESC,id DESC
                 """,
                 (source_values, source_id_values),
             ).fetchall()

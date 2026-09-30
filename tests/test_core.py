@@ -348,20 +348,20 @@ def test_digest_is_recorded_before_telegram_delivery(monkeypatch):
     monkeypatch.setattr(cli, "send", failing_send)
     with pytest.raises(RuntimeError, match="telegram unavailable"):
         cli.main(["digest", "--send"])
-    assert events == ["init", "digest", "send"]
+    assert events == ["digest", "send"]
 
 
 def test_ingest_records_source_run_after_storage(monkeypatch):
     events: list[str] = []
 
     class FakeStore:
-        def last_run(self, source: str) -> None:
-            return None
+        def last_runs(self, sources: list[str]) -> dict[str, datetime]:
+            return {}
 
         def save(self, items: list[Item]) -> None:
             events.append("save")
 
-        def run(self, source: str, status: str, count: int = 0, error: str | None = None) -> None:
+        def record_runs(self, runs: list[tuple[str, str, int, str | None]]) -> None:
             events.append("run")
 
         def dead_letter(self, source: str | None, error: str, payload: dict | None = None) -> None:

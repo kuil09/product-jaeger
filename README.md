@@ -16,7 +16,7 @@ mypy src
 ## Fork and configure
 
 1. Fork `kuil09/product-jaeger` on GitHub and open the fork's `Settings > Actions > General` page.
-2. Create a free Neon PostgreSQL project. Copy its pooled connection string and run the first database setup locally with `NEON_DATABASE_URL='...' product-jaeger init-db`, or use the same command from a manually dispatched workflow.
+2. Create a free Neon PostgreSQL project. Copy its pooled connection string. Schema setup is an explicit operation: run `NEON_DATABASE_URL='...' product-jaeger init-db` locally, or after adding the secrets below, dispatch `Manual radar run` with `initialize_database` checked. That workflow initializes the schema before normal ingestion.
 3. Create an OpenRouter API key. Store only the key in GitHub; Product Jaeger discovers the current free model catalog at each digest run, so no model ID needs to be configured.
 4. Create a Telegram bot with BotFather, start a chat with it using `/start`, and obtain the numeric chat ID for that chat.
 5. Add the four repository secrets listed below under `Settings > Secrets and variables > Actions`. Never put them in YAML, `.env` committed files, issues, or public artifacts.
@@ -45,9 +45,19 @@ Workflows:
 - `ingest.yml`: 15-minute runner with source-specific interval gates.
 - `digest.yml`: 07:30 and 21:00 KST digest and Telegram delivery.
 - `publish.yml`: public Pages projection with `latest` and date-stamped archive entries.
-- `manual-run.yml`: manually selected source and ISO-8601 start-time replay.
+- `manual-run.yml`: normal ingestion or manually selected source and ISO-8601 start-time replay; optional explicit schema setup. Manual and scheduled ingestion share one concurrency group.
 
 For a targeted replay, open `Manual radar run` and choose a source plus an optional ISO-8601 `since` value. The equivalent local command is `product-jaeger ingest --source hn_show --since 2026-09-12T00:00:00Z`.
+
+### Database setup and quota recovery
+
+Run `product-jaeger init-db` once for a new database and again when deploying schema changes. It is idempotent. Routine `ingest`, `digest`, and `publish` commands require an initialized schema and do not execute DDL. Existing initialized databases need no new migration for the connection-overhead change.
+
+Ingestion reads all enabled source interval gates in one connection, closes that connection before fetching HTTP sources, and records source results in one batch only after item storage succeeds. When no sources are due, it skips saves, run logs, and retention pruning. It does not maintain an idle database connection while waiting for source APIs.
+
+A Neon quota error still requires checking the project's actual exhausted resource and reset date; reducing application overhead does not clear an exhausted provider quota. Once database access is restored, dispatch `Ingest radar sources` with its normal defaults to resume. No outage replay is necessary: the normal two-hour start window for HN/GitHub and current RSS feeds remain unchanged. Leave manual `since` unset when historical replay is not wanted. Verify ingestion succeeds before manually sending a digest or publishing the archive.
+
+The 15-minute schedule is unchanged. Reducing database connection counts does not eliminate scheduled database wakeups or their idle-to-suspend compute time. Review the provider's measured compute usage before changing source freshness or paid-plan settings.
 
 ## Configuration and operating limits
 

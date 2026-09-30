@@ -18,18 +18,30 @@ class Store:
             db.execute(migration.read_text(encoding="utf-8"))
 
     def last_run(self, source: str) -> datetime | None:
+        return self.last_runs([source]).get(source)
+
+    def last_runs(self, sources: list[str]) -> dict[str, datetime]:
+        if not sources:
+            return {}
         with psycopg.connect(self.dsn) as db:
-            row = db.execute(
-                "SELECT max(created_at) FROM runs WHERE source=%s", (source,)
-            ).fetchone()
-        return row[0] if row and isinstance(row[0], datetime) else None
+            rows = db.execute(
+                "SELECT source,max(created_at) FROM runs WHERE source = ANY(%s) GROUP BY source",
+                (sources,),
+            ).fetchall()
+        return {str(row[0]): row[1] for row in rows if isinstance(row[1], datetime)}
 
     def run(self, source: str, status: str, count: int = 0, error: str | None = None) -> None:
+        self.record_runs([(source, status, count, error)])
+
+    def record_runs(self, runs: list[tuple[str, str, int, str | None]]) -> None:
+        if not runs:
+            return
         with psycopg.connect(self.dsn) as db:
-            db.execute(
-                "INSERT INTO runs(source,status,item_count,error) VALUES(%s,%s,%s,%s)",
-                (source, status, count, error),
-            )
+            with db.cursor() as cursor:
+                cursor.executemany(
+                    "INSERT INTO runs(source,status,item_count,error) VALUES(%s,%s,%s,%s)",
+                    runs,
+                )
 
     def dead_letter(
         self, source: str | None, error: str, payload: dict[str, Any] | None = None
